@@ -7,10 +7,7 @@ use livesplit_core::{
 };
 use serde::Deserialize;
 use std::{
-    fmt, fs,
-    io::Cursor,
-    path::{Path, PathBuf},
-    time::{Duration, SystemTime},
+    fmt, fs, io::Cursor, path::{Path, PathBuf}, sync::{Arc, RwLock}, time::{Duration, SystemTime}
 };
 
 #[derive(Default, Deserialize)]
@@ -121,7 +118,7 @@ impl Config {
     //     self.general.splits = Some(path);
     // }
 
-    pub fn create_hotkey_system(&self, timer: SharedTimer) -> Option<HotkeySystem> {
+    pub fn create_hotkey_system(&self, timer: SharedTimer) -> Option<HotkeySystem<Arc<RwLock<Timer>>>> {
         HotkeySystem::with_config(timer, self.hotkeys).ok()
     }
 
@@ -200,9 +197,9 @@ impl Config {
         stream_markers::Client::new(self.connections.twitch.as_deref())
     }
 
-    pub fn maybe_load_auto_splitter(&self, runtime: &auto_splitting::Runtime) {
+    pub fn maybe_load_auto_splitter(&self, runtime: &auto_splitting::Runtime<SharedTimer>, timer: SharedTimer) {
         if let Some(auto_splitter) = &self.general.auto_splitter {
-            if let Err(e) = runtime.load_script_blocking(auto_splitter.clone()) {
+            if let Err(e) = runtime.load(auto_splitter.clone(), timer) {
                 log::error!("Auto Splitter failed to load: {}", ErrorChain(&e));
             }
         }
